@@ -37,7 +37,6 @@ def register_user():
                     open_main_menu("company_profile.csv")
                     register_window.destroy()
 
-
         except ValueError:
             messagebox.showerror(title="Unvalid number", message="Please, use a valid number")
     
@@ -62,7 +61,6 @@ def register_user():
     save_button.grid(row=4, column=0, columnspan=2)
 
     root.wait_window(register_window) #This always goes at the end of a generate window function to stoip all the program
-
 
 
 def open_main_menu(filename):
@@ -90,29 +88,30 @@ def center_window(window_name, width = 400, heigth = 400):
 
 # =========================================Logical and MATH Functions =================================
 
-
-# -----------------------Calculating Financial data based in products.csv and saved it in financial_report.csv
-def read_product_data(filename):
-    products = []
-
+# ---------------MAIN READER---------------------------
+def read_csv_file(filename):
     with open(filename, "r") as file:
-        csvreader = csv.DictReader(file, delimiter=",")
-        for row in csvreader:
-            code = row["product_code"]
-            name = row["name"]
-            v_cost = float(row["variable_cost"])
-            price = float(row["price"])
-            qty = int(row["sell_quantity"])
-            unit_cm = price - v_cost #Contribution Margin 
-
-            products.append({
-                "code": code,
-                "name": name,
-                "v_cost": v_cost,
-                "price": price,
-                "qty": qty,
-                "unit_cm": unit_cm})
-    return products
+        data_list = csv.DictReader(filename, delimiter=",")
+        return list(data_list)
+# -----------------------Calculating Financial data based in products.csv and saved it in financial_report.csv
+def clean_product_data(filename):
+    products_data = read_csv_file(filename)
+    products_data_cleaned = []
+    for row in products_data:
+        code = row["product_code"]
+        name = row["name"]
+        v_cost = float(row["variable_cost"])
+        price = float(row["price"])
+        qty = int(row["sell_quantity"])
+        unit_cm = price - v_cost #Contribution Margin 
+        products_data_cleaned.append({
+            "code": code,
+            "name": name,
+            "v_cost": v_cost,
+            "price": price,
+            "qty": qty,
+            "unit_cm": unit_cm})
+    return products_data_cleaned
 
 def calculate_financial_data(products_data):
     total_units_sold = sum(prod["qty"] for prod in products_data)
@@ -132,7 +131,8 @@ def save_financial_data(save_filename, products):
         for product in products:
             writer.writerow(product)
 
-
+def calculate_unit_breakeven():
+    ... 
 
 
 
@@ -146,10 +146,12 @@ def main():
         register_user()
 
     # ------------calculus for reading data------------------
-    # products_data = read_product_data("products.csv")
-    # products_data, wacm = calculate_financial_data(products_data)
-    # save_financial_data("financial_report.csv", products_data)
-    # print(wacm)
+    products_data = clean_product_data("products.csv")
+    products_data, wacm = calculate_financial_data(products_data)
+    save_financial_data("financial_report.csv", products_data)
+    
+
+    print(wacm)
 
 if __name__ == "__main__":
     main()

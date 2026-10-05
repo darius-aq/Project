@@ -1,5 +1,5 @@
 product_code,name,variable_cost,price,sell_quantity
-WD02,productB,1.00,1.10, 1
+WD02,productB,1.00,1.10, 1  
 WD03,productC,0.50,1.00, 50
 WD04,productD,1.00,1.60, 38
 WD05,productE,0.20,0.80, 96

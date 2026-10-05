@@ -9,8 +9,9 @@ root.withdraw()
 def disable_event():
     pass
 
-def register_user(filename):
+def register_user():
     register_window = tk.Toplevel(root)
+    register_window.protocol("WM_DELETE_WINDOW", disable_event)
     register_window.title("User_Information")
     center_window(register_window, 400, 400)
 
@@ -22,20 +23,25 @@ def register_user(filename):
         try:
             fixed_cost = float(fixed_cost)
             if not all((company_name, username, fixed_cost)):
-                if fixed_cost <= 0:
-                    ...
                 messagebox.showerror(title="Empty field", message="Please, fill out all the required field")
             else:
-                messagebox.showinfo(title="Data Saved", message="Your data has been updated")
+                if fixed_cost <= 0:
+                    messagebox.showwarning(title="Unvalid number", message="Fixed cost can't be a negative number")
+                else:
+                    company_data = [["company_name","username","fixed_cost"],
+                                    [company_name, username, fixed_cost]]
+                    with open("company_profile.csv", "w", newline="") as file:
+                        csvwriter = csv.writer(file, delimiter=",")
+                        csvwriter.writerows(company_data)
+                    messagebox.showinfo(title="Data Saved", message="Your data has been saved")
+                    open_main_menu("company_profile.csv")
+                    register_window.destroy()
+
 
         except ValueError:
-            ...
-
-        
-        
-        print(company_name, username, fixed_cost, sep=", ")
+            messagebox.showerror(title="Unvalid number", message="Please, use a valid number")
     
-    # ----------------widgets--------------------
+    # ----------------widgets for register user--------------------
     title_label = tk.Label(register_window, text="Enter your information", font=("Arial", 16, "bold"))
     label_company = tk.Label(register_window, text="Company Name") 
     label_username = tk.Label(register_window, text="Full Name")
@@ -45,7 +51,7 @@ def register_user(filename):
     entry_fixed_cost = tk.Entry(register_window)
     save_button = tk.Button(register_window, text="Save Data", command=save_information)
 
-    # ------------pack-------------------------------
+    # ------------grid for register user-------------------------------
     title_label.grid(row=0, column=0, columnspan=2)
     label_company.grid(row=1, column=0)
     entry_company.grid(row=1, column=1)
@@ -55,10 +61,9 @@ def register_user(filename):
     entry_fixed_cost.grid(row=3, column=1)
     save_button.grid(row=4, column=0, columnspan=2)
 
-    
-
-
     root.wait_window(register_window) #This always goes at the end of a generate window function to stoip all the program
+
+
 
 def open_main_menu(filename):
     with open(filename, "r") as file:
@@ -138,7 +143,7 @@ def main():
     try:
         open_main_menu("company_profile.csv")
     except FileNotFoundError:
-        register_user("company_profile.csv")
+        register_user()
 
     # ------------calculus for reading data------------------
     # products_data = read_product_data("products.csv")

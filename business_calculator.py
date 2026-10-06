@@ -76,21 +76,18 @@ def open_main_menu():
     global_breakeven_revenue = global_data["global_breakeven_revenue"]
     total_breakeven = round(global_data["total_breakeven"])
     
-    
     root.deiconify()
     root.title("Main Menu")
     center_window(root, 400, 500)
 
-    def close_window():
+    def close_window(setup_window):
         for widget in root.winfo_children():
             widget.destroy()
-        register_user() 
-
-    
-
+        setup_window()
+     
 
     title_lbl = tk.Label(root, text=f"{company_name}\nBusiness calculator")
-    button_profile = tk.Button(root, text="Edit Profile Info", command=close_window)
+    button_profile = tk.Button(root, text="Edit Profile Info", command= lambda:close_window(register_user))
     owner_lbl = tk.Label(root, text=f"Owner: {user_name}")
     separator = ttk.Separator(root, orient="horizontal")
     fixed_cost_lbl = tk.Label(root, text=f"Total Fixed Cost: {Decimal(fixed_cost):.2f}")
@@ -102,8 +99,8 @@ def open_main_menu():
     rvn_breakeven_status = tk.Label(root, text=f"Status: ${total_revenue}")
     separator3 = ttk.Separator(root, orient="horizontal")
 
-    button_purchase = tk.Button(text="Register sale", command=register_sales)
-    button_report = tk.Button(text="Generate reports", command=request_report)
+    button_purchase = tk.Button(text="Register sale", command= lambda:close_window(register_sales))
+    button_report = tk.Button(text="Generate reports", command=lambda:close_window(request_report))
 
     
     button_profile.grid(row=0, column=1, sticky="w")
@@ -133,7 +130,56 @@ def open_main_menu():
 
 
 def register_sales():
-    ...
+
+    root.withdraw()
+    products_data = read_csv_file("products.csv")
+    company_info = read_csv_file("company_profile.csv")[0]
+    for p in products_data:
+        p["price"] = Decimal(p["price"])
+
+    sales_window = tk.Toplevel(root)
+    sales_window.title("Register new Sale")
+    center_window(sales_window, 300, 400) 
+
+    def add_sale():
+        product_options = []
+        for p in products_data:
+            product_options.append(p["name"]) 
+        print(product_options)
+
+
+        add_window = tk.Toplevel(sales_window)
+        add_window.transient(sales_window)
+        add_window.grab_set()
+        add_window.title("Add new sale")
+        center_window(add_window, 200, 300)
+
+        choose_lbl = tk.Label(add_window, text="Chosse a product")
+        options_cb = ttk.Combobox(add_window, text="Choose a product", values=product_options)
+
+        choose_lbl.grid(row=0, column=0)
+        options_cb.grid(row=1, column=0)
+
+
+
+    title_lbl = tk.Label(sales_window, text=company_info["company_name"])
+    register_btn = tk.Button(sales_window, text="Register Sale", command=add_sale)
+
+    title_lbl.grid(row=0, column=0)
+    register_btn.grid(row=0, column=1)
+    
+    # Sales detail area
+    columns = ["code","qty", "name", "price","total"]
+    tree = ttk.Treeview(sales_window, columns=columns, show="headings")
+    tree.grid(row=1, column=0)
+    tree.heading("code", text="Code")
+    tree.heading("qty", text="QTY")
+    tree.heading("name", text="Description")
+    tree.heading("price", text="Unit Price")
+    tree.heading("total", text="Total")
+
+
+
 
 def request_report():
     ...
@@ -152,8 +198,6 @@ def center_window(window_name, width = 400, heigth = 400):
     window_name.geometry(f"{width_window}x{heigth_window}+{center_x}+{center_y}")  
 
 
-
-
 # =========================================Logical and MATH Functions =================================
 
 # ---------------MAIN READER---------------------------
@@ -162,7 +206,7 @@ def read_csv_file(filename):
         data_list = csv.DictReader(file, delimiter=",")
         return list(data_list)
 # -----------------------Calculating Financial data based in products.csv and saved it in financial_report.csv
-def clean_product_data(filename):
+def clean_products_data(filename):
     products_data = read_csv_file(filename)
     products_data_cleaned = []
     for row in products_data:
@@ -208,7 +252,6 @@ def calculate_breakeven(fixed_cost, wacm, products_sale_mix):
         products_unit_breakeven.append(math.ceil(sale_mix * total_breakeven))
     return total_breakeven, products_unit_breakeven    
 
-
 def calculate_breakeven_revenue(products_data, fixed_cost):
     cm_ratio = sum(p["wasp"] for p in products_data)
     breakeven_revenue = Decimal(fixed_cost)/cm_ratio
@@ -220,12 +263,10 @@ def calculate_breakeven_status():
     total_revenue = sum(Decimal(p["revenue_per_product"]) for p in products)
     return total_qty, total_revenue
     
-
-
 def master_financial_data(profile):
     company_profile = read_csv_file(profile)[0]
     # ------------calculus for reading data------------------
-    products_data = clean_product_data("products.csv")
+    products_data = clean_products_data("products.csv")
     products_data, wacm = calculate_financial_data(products_data)
     
     total_breakeven, products_unit_breakeven = calculate_breakeven(company_profile["fixed_cost"], wacm, (p["sale_mix"] for p in products_data))
@@ -238,6 +279,9 @@ def master_financial_data(profile):
     global_financial_data = {"total_breakeven":total_breakeven, "global_breakeven_revenue": breakeven_revenue, "wacm": wacm}
 
     return global_financial_data
+
+
+
 
 def main():
     try:

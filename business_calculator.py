@@ -8,9 +8,28 @@ root = tk.Tk()
 root.withdraw()
 
 # ===========================Front End T kinter functions ==============================================================
+def close_window(setup_new_window, window):
+    for widget in window.winfo_children():
+        widget.destroy()
+    window.withdraw()
+    setup_new_window()
+
 def disable_event():
     pass
 
+# ----------------------Centering Algortim ------------------
+def center_window(window_name, width = 400, heigth = 400):
+    width_window = width
+    heigth_window = heigth
+    width_screen = root.winfo_screenwidth()
+    heigth_screen = root.winfo_screenheight()
+
+    center_x = (width_screen - width_window) // 2 
+    center_y = (heigth_screen - heigth_window) // 2
+
+    window_name.geometry(f"{width_window}x{heigth_window}+{center_x}+{center_y}")  
+
+# ______________________________ WINDOW SETUP _____________________________
 def register_user():
     root.withdraw()
     register_window = tk.Toplevel(root)
@@ -63,7 +82,7 @@ def register_user():
     entry_fixed_cost.grid(row=3, column=1)
     save_button.grid(row=4, column=0, columnspan=2)
 
-    root.wait_window(register_window) #This always goes at the end of a generate window function to stoip all the program
+    # root.wait_window(register_window) #This always goes at the end of a generate window function to stoip all the program
 
 
 def open_main_menu():
@@ -80,14 +99,8 @@ def open_main_menu():
     root.title("Main Menu")
     center_window(root, 400, 500)
 
-    def close_window(setup_window):
-        for widget in root.winfo_children():
-            widget.destroy()
-        setup_window()
-     
-
     title_lbl = tk.Label(root, text=f"{company_name}\nBusiness calculator")
-    button_profile = tk.Button(root, text="Edit Profile Info", command= lambda:close_window(register_user))
+    button_profile = tk.Button(root, text="Edit Profile Info", command= lambda:close_window(register_user, root))
     owner_lbl = tk.Label(root, text=f"Owner: {user_name}")
     separator = ttk.Separator(root, orient="horizontal")
     fixed_cost_lbl = tk.Label(root, text=f"Total Fixed Cost: {Decimal(fixed_cost):.2f}")
@@ -99,8 +112,8 @@ def open_main_menu():
     rvn_breakeven_status = tk.Label(root, text=f"Status: ${total_revenue}")
     separator3 = ttk.Separator(root, orient="horizontal")
 
-    button_purchase = tk.Button(text="Register sale", command= lambda:close_window(register_sales))
-    button_report = tk.Button(text="Generate reports", command=lambda:close_window(request_report))
+    button_purchase = tk.Button(text="Register sale", command= lambda:close_window(register_sales, root))
+    button_report = tk.Button(text="Generate reports", command= lambda:close_window(request_report, root))
 
     
     button_profile.grid(row=0, column=1, sticky="w")
@@ -129,7 +142,7 @@ def open_main_menu():
 
 
 def register_sales():
-    actual_sale = []
+    actual_sales = []
     root.withdraw()
     products_data = read_csv_file("products.csv")
     company_info = read_csv_file("company_profile.csv")[0]
@@ -138,8 +151,9 @@ def register_sales():
 
     sales_window = tk.Toplevel(root)
     sales_window.title("Register new Sale")
-    center_window(sales_window, 300, 400) 
+    center_window(sales_window, 450, 400) 
 
+    # --------------------------Function for register Sales-------------------------------------
     def add_sale():
         product_options = []
         for p in products_data:
@@ -147,49 +161,76 @@ def register_sales():
         print(product_options)
 
         def save():
+            code = ""
             name = options_cb.get()
+            price = 0
             try:
                 qty = int(quantity_sbx.get())
             except ValueError:
                 messagebox.showerror(title="Invalid number", message="Please, use a valid number")
-            code = ""
-
+                return
+            if qty <= 0:
+                messagebox.showwarning(title="Invalid number", message="Quantity can't be 0 or lower")
+                return
+            for sale in actual_sales:
+                if sale["name"] == name:
+                    sale["qty"] += qty
+                    sale["total"] = calculate_total_per_unit(sale["qty"], sale["price"])
+                    build_table()
+                    add_window.destroy()
+                    return
+                
             for product in products_data:
                 if product["name"] == name:
+                    price = product["price"]
                     code = product["product_code"]
                     break
-            if product["name"] != name:
-                messagebox.showwarning(title="Product not Found", message="Please, use the options given and not edit the names")
+            if code == "":
+                messagebox.showwarning(title="Product Not Found", message="Use the valid options. Be sure to not edit the names")
+                return
                
-            actual_sale.append({
+            actual_sales.append({
                 "name": name, 
                 "qty": qty, 
-                "code":code})
-            print(actual_sale)
+                "code":code,
+                "price":price})
+            build_table()
             add_window.destroy()
-            
 
+        # --------- GUI for windows to add new sale---------------- 
         add_window = tk.Toplevel(sales_window)
         add_window.transient(sales_window)
         add_window.grab_set()
         add_window.title("Add new sale")
-        center_window(add_window, 200, 300)
+        center_window(add_window, 200, 200)
 
         choose_lbl = tk.Label(add_window, text="Chosse a product")
         options_cb = ttk.Combobox(add_window, text="Choose a product", values=product_options)
         quantity_lbl = tk.Label(add_window, text="Quantity sold")
         quantity_sbx = tk.Spinbox(add_window, from_=0, to=100, width=10, relief="sunken")
         save_btn = tk.Button(add_window, text="Save", command=save)
+        cancel_btn = tk.Button(add_window, text="Cancel", command=add_window.destroy)
         
         choose_lbl.grid(row=0, column=0)
         options_cb.grid(row=1, column=0)
         quantity_lbl.grid(row=2, column=0)
         quantity_sbx.grid(row=3, column=0)
         save_btn.grid(row=4, column=0)
+        cancel_btn.grid(row=4, column=1)
 
-
-
-
+    
+    def build_table():
+        for record in tree.get_children():
+            tree.delete(record)
+        if actual_sales:
+            for sale in actual_sales:
+                sale["total_per_unit"] = calculate_total_per_unit(sale["qty"], sale["price"])
+                total_per_unit = sale["total_per_unit"]
+                print(total_per_unit)
+                tree.insert("", tk.END, values=(sale["code"], sale["qty"], sale["name"], sale["price"], total_per_unit))
+    
+    
+    # ---------------GUI for table---------------------------
     title_lbl = tk.Label(sales_window, text=company_info["company_name"])
     register_btn = tk.Button(sales_window, text="Register Sale", command=add_sale)
 
@@ -206,24 +247,28 @@ def register_sales():
     tree.heading("price", text="Unit Price")
     tree.heading("total", text="Total")
 
+    tree.column("code", width=50)
+    tree.column("qty", width=40)
+    tree.column("name", width=150)
+    tree.column("price", width=80)
+    tree.column("total", width=50)
+    # -------------------Buttons to save---------------------------------
+    confirm_btn = tk.Button(sales_window, text="Confirm Sale", command="")
+    cancel_btn = tk.Button(sales_window, text="Cancel Sale", command = lambda:close_window(open_main_menu, sales_window))
+    totals_lbl = tk.Label(sales_window, text="Subtotal: \nTax(7.5%): \nTotal: ")
+    
+    totals_lbl.grid(row=2, column=0)
+    confirm_btn.grid(row=2, column=1)
+    cancel_btn.grid(row=3, column=1)
+    
 
+        
 
 
 def request_report():
     ...
 
 
-# ----------------------Centering Algortim ------------------
-def center_window(window_name, width = 400, heigth = 400):
-    width_window = width
-    heigth_window = heigth
-    width_screen = root.winfo_screenwidth()
-    heigth_screen = root.winfo_screenheight()
-
-    center_x = (width_screen - width_window) // 2 
-    center_y = (heigth_screen - heigth_window) // 2
-
-    window_name.geometry(f"{width_window}x{heigth_window}+{center_x}+{center_y}")  
 
 
 # =========================================Logical and MATH Functions =================================
@@ -233,6 +278,15 @@ def read_csv_file(filename):
     with open(filename, "r") as file:
         data_list = csv.DictReader(file, delimiter=",")
         return list(data_list)
+
+# ...................Calculate total and detail for sales.....................
+def calculate_total_per_unit(quantity, price):
+    return quantity * price
+
+def calculate_subtotal():
+    ...
+
+    
 # -----------------------Calculating Financial data based in products.csv and saved it in financial_report.csv
 def clean_products_data(filename):
     products_data = read_csv_file(filename)

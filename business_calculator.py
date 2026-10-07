@@ -142,7 +142,9 @@ def open_main_menu():
 
 
 def register_sales():
+    # Actual sales =  [{name:str, qty:int, code:str, price:Decimal, total_per_unit:Decimal}]
     actual_sales = []
+
     root.withdraw()
     products_data = read_csv_file("products.csv")
     company_info = read_csv_file("company_profile.csv")[0]
@@ -176,7 +178,7 @@ def register_sales():
                 if sale["name"] == name:
                     sale["qty"] += qty
                     sale["total"] = calculate_total_per_unit(sale["qty"], sale["price"])
-                    build_table()
+                    build_table(actual_sales)
                     add_window.destroy()
                     return
                 
@@ -194,7 +196,7 @@ def register_sales():
                 "qty": qty, 
                 "code":code,
                 "price":price})
-            build_table()
+            build_table(actual_sales)
             add_window.destroy()
 
         # --------- GUI for windows to add new sale---------------- 
@@ -219,7 +221,7 @@ def register_sales():
         cancel_btn.grid(row=4, column=1)
 
     
-    def build_table():
+    def build_table(actual_sales):
         for record in tree.get_children():
             tree.delete(record)
         if actual_sales:
@@ -228,6 +230,19 @@ def register_sales():
                 total_per_unit = sale["total_per_unit"]
                 print(total_per_unit)
                 tree.insert("", tk.END, values=(sale["code"], sale["qty"], sale["name"], sale["price"], total_per_unit))
+        
+        subtotal, tax, total = master_calculate_totalprice(actual_sales)
+        totals_lbl = tk.Label(sales_window, text=f"Subtotal:{subtotal} \nTax(7.5%):{tax} \nTotal: {total}")
+        totals_lbl.grid(row=2, column=0)
+
+    def confirm_sale(actual_sales):
+        if actual_sales:
+            subtotal, tax, total = master_calculate_totalprice(actual_sales)
+            totals = [subtotal, tax, total]
+            update_products_file(actual_sales)
+            write_receipt(totals, actual_sales)
+        else:
+            ...
     
     
     # ---------------GUI for table---------------------------
@@ -253,17 +268,12 @@ def register_sales():
     tree.column("price", width=80)
     tree.column("total", width=50)
     # -------------------Buttons to save---------------------------------
-    confirm_btn = tk.Button(sales_window, text="Confirm Sale", command="")
+    confirm_btn = tk.Button(sales_window, text="Confirm Sale", command = lambda:confirm_sale(actual_sales))
     cancel_btn = tk.Button(sales_window, text="Cancel Sale", command = lambda:close_window(open_main_menu, sales_window))
-    totals_lbl = tk.Label(sales_window, text="Subtotal: \nTax(7.5%): \nTotal: ")
     
-    totals_lbl.grid(row=2, column=0)
     confirm_btn.grid(row=2, column=1)
     cancel_btn.grid(row=3, column=1)
     
-
-        
-
 
 def request_report():
     ...
@@ -273,6 +283,8 @@ def request_report():
 
 # =========================================Logical and MATH Functions =================================
 
+
+
 # ---------------MAIN READER---------------------------
 def read_csv_file(filename):
     with open(filename, "r") as file:
@@ -280,12 +292,46 @@ def read_csv_file(filename):
         return list(data_list)
 
 # ...................Calculate total and detail for sales.....................
+def master_calculate_totalprice(actual_sales):
+    subtotal = round(calculate_subtotal(actual_sales), 2)
+    tax = round(calculate_tax(Decimal(0.075), subtotal), 2)
+    total = subtotal + tax
+    return subtotal, tax, total
+
 def calculate_total_per_unit(quantity, price):
     return quantity * price
 
-def calculate_subtotal():
+def calculate_subtotal(actual_sale):
+    subtotal = sum(Decimal(total["total_per_unit"]) for total in actual_sale)
+    return round(subtotal, 2)
+    
+def calculate_tax(tax_percentage, subtotal):
+    return tax_percentage * subtotal
+
+# ----------------------------------------------------------
+def update_products_file(actual_sales):
+    updated_data = read_csv_file("products.csv")
+    fieldnames = updated_data[0].keys()
+
+    for products in updated_data:
+        for sale in actual_sales:
+            if products["name"] == sale["name"]:
+                products["sell_quantity"] = int(products["sell_quantity"]) + sale["qty"]
+                
+    with open("products.csv", "w", newline="") as products_data:
+        writer = csv.DictWriter(products_data, fieldnames=fieldnames)
+        writer.writeheader()
+        for product in updated_data:
+            writer.writerow(product)
+
+def update_saleslog_file():
     ...
 
+def write_receipt(totals:list, actual_sales:list):
+    receipt_format ="==========================" \
+                    ""
+    with open("receipt.txt", "w") as receipt:
+        ...    
     
 # -----------------------Calculating Financial data based in products.csv and saved it in financial_report.csv
 def clean_products_data(filename):

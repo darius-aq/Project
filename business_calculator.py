@@ -41,7 +41,7 @@ def register_user():
                     open_main_menu()
                     
         except ValueError:
-            messagebox.showerror(title="Unvalid number", message="Please, use a valid number")
+            messagebox.showerror(title="Invalid number", message="Please, use a valid number")
     
     # ----------------widgets for register user--------------------
     title_label = tk.Label(register_window, text="Enter your information", font=("Arial", 16, "bold"))
@@ -128,9 +128,8 @@ def open_main_menu():
     root.wait_window(root)
 
 
-
 def register_sales():
-
+    actual_sale = []
     root.withdraw()
     products_data = read_csv_file("products.csv")
     company_info = read_csv_file("company_profile.csv")[0]
@@ -147,6 +146,28 @@ def register_sales():
             product_options.append(p["name"]) 
         print(product_options)
 
+        def save():
+            name = options_cb.get()
+            try:
+                qty = int(quantity_sbx.get())
+            except ValueError:
+                messagebox.showerror(title="Invalid number", message="Please, use a valid number")
+            code = ""
+
+            for product in products_data:
+                if product["name"] == name:
+                    code = product["product_code"]
+                    break
+            if product["name"] != name:
+                messagebox.showwarning(title="Product not Found", message="Please, use the options given and not edit the names")
+               
+            actual_sale.append({
+                "name": name, 
+                "qty": qty, 
+                "code":code})
+            print(actual_sale)
+            add_window.destroy()
+            
 
         add_window = tk.Toplevel(sales_window)
         add_window.transient(sales_window)
@@ -156,9 +177,16 @@ def register_sales():
 
         choose_lbl = tk.Label(add_window, text="Chosse a product")
         options_cb = ttk.Combobox(add_window, text="Choose a product", values=product_options)
-
+        quantity_lbl = tk.Label(add_window, text="Quantity sold")
+        quantity_sbx = tk.Spinbox(add_window, from_=0, to=100, width=10, relief="sunken")
+        save_btn = tk.Button(add_window, text="Save", command=save)
+        
         choose_lbl.grid(row=0, column=0)
         options_cb.grid(row=1, column=0)
+        quantity_lbl.grid(row=2, column=0)
+        quantity_sbx.grid(row=3, column=0)
+        save_btn.grid(row=4, column=0)
+
 
 
 

@@ -98,10 +98,10 @@ def open_main_menu():
     
     root.deiconify()
     root.title("Main Menu")
-    center_window(root, 400, 500)
+    center_window(root, 300, 450)
 
     title_lbl = tk.Label(root, text=f"{company_name}\nBusiness calculator")
-    button_profile = tk.Button(root, text="Edit Profile Info", command= lambda:close_window(register_user, root))
+    button_profile = tk.Button(root, text="Edit\nProfile", command= lambda:close_window(register_user, root))
     owner_lbl = tk.Label(root, text=f"Owner: {user_name}")
     separator = ttk.Separator(root, orient="horizontal")
     fixed_cost_lbl = tk.Label(root, text=f"Total Fixed Cost: {Decimal(fixed_cost):.2f}")
@@ -113,30 +113,30 @@ def open_main_menu():
     rvn_breakeven_status = tk.Label(root, text=f"Status: ${total_revenue}")
     separator3 = ttk.Separator(root, orient="horizontal")
 
-    button_purchase = tk.Button(text="Register sale", command= lambda:close_window(register_sales, root))
-    button_report = tk.Button(text="Generate reports", command= lambda:close_window(request_report, root))
+    button_purchase = tk.Button(text="Register\nsale", command= lambda:close_window(register_sales, root))
+    button_report = tk.Button(text="Generate\nreports", command= lambda:close_window(request_report, root))
 
     
-    button_profile.grid(row=0, column=1, sticky="w")
-    title_lbl.grid(row=0, column=0)
-    owner_lbl.grid(row=1, column=0)
+    button_profile.grid(row=0, column=0 , padx=15, pady=15, sticky="w")
+    title_lbl.grid(row=0, column=0, padx=15, pady=15)
+    owner_lbl.grid(row=1, column=0, padx=15, pady=5)
 
-    separator.grid(row=2, column=0, columnspan=2, sticky="ew")
+    separator.grid(row=2, column=0, columnspan=2, padx=10 , sticky="ew")
 
-    fixed_cost_lbl.grid(row=3, column=0, sticky="w")
-    separator1.grid(row=4, column=0, columnspan=2, sticky="ew")
-    global_breakeven_lbl.grid(row=5, column=0, sticky="w")
-    glb_breakeven_status.grid(row=5, column=1, sticky="w")
+    fixed_cost_lbl.grid(row=3, column=0, padx=15, pady=5, sticky="ew")
+    separator1.grid(row=4, column=0, padx=15, columnspan=2, sticky="ew")
+    global_breakeven_lbl.grid(row=5, padx=15, pady=5, column=0, sticky="ew")
+    glb_breakeven_status.grid(row=6, padx=15, pady=5, column=0, sticky="ew")
 
-    separator2.grid(row=6, column=0, columnspan=2, sticky="ew")
+    separator2.grid(row=7, column=0, padx=15, pady=5, columnspan=2, sticky="ew")
 
-    breakeven_revenue_lbl.grid(row=7, column=0, sticky="w")
-    rvn_breakeven_status.grid(row=7, column=1, sticky="w")
+    breakeven_revenue_lbl.grid(row=8, column=0, padx=5, pady=15, sticky="ew")
+    rvn_breakeven_status.grid(row=9, column=0, padx=5, pady=15, sticky="ew")
 
-    separator3.grid(row=8, column=0, columnspan=2, sticky="ew")
+    separator3.grid(row=10, column=0, padx=15, pady=5, columnspan=2, sticky="ew")
 
-    button_purchase.grid(row=9, column=0, sticky="w")
-    button_report.grid(row=9, column=1)
+    button_purchase.grid(row=11, column=0, padx=15, pady=15, sticky="w")
+    button_report.grid(row=11, column=0, padx=15, pady=15, sticky="e")
 
 
     root.wait_window(root)
@@ -161,7 +161,6 @@ def register_sales():
         product_options = []
         for p in products_data:
             product_options.append(p["name"]) 
-        print(product_options)
 
         def save():
             code = ""
@@ -229,7 +228,6 @@ def register_sales():
             for sale in actual_sales:
                 sale["total_per_unit"] = calculate_total_per_unit(sale["qty"], sale["price"])
                 total_per_unit = sale["total_per_unit"]
-                print(total_per_unit)
                 tree.insert("", tk.END, values=(sale["code"], sale["qty"], sale["name"], sale["price"], total_per_unit))
         
         subtotal, tax, total = master_calculate_totalprice(actual_sales)
@@ -242,9 +240,11 @@ def register_sales():
             totals = [subtotal, tax, total]
             update_products_file(actual_sales)
             write_receipt(totals, actual_sales)
+            update_saleslog_file(actual_sales)
+            messagebox.showinfo(title="Sales Log", message="Sales log file updated")
+            close_window(open_main_menu, sales_window)
         else:
-            ...
-    
+            messagebox.showwarning(title="No products registered", message="No sales registered, add a product first")
     
     # ---------------GUI for table---------------------------
     title_lbl = tk.Label(sales_window, text=company_info["company_name"])
@@ -325,8 +325,21 @@ def update_products_file(actual_sales):
         for product in updated_data:
             writer.writerow(product)
 
-def update_saleslog_file():
-    ...
+def update_saleslog_file(actual_sales):
+    today = datetime.datetime.now()
+    date = today.strftime("%m-%d-%y")
+    time = today.strftime("%H:%M:%S")
+    sales_log = []
+    for products in actual_sales:
+        sales_log.append({"code":products["code"],"date":date, "time":time,"qty":products["qty"], "name":products["name"], "price":products["price"], "total":products["total_per_unit"]} )
+    
+    with open("sales_log.csv", "a", newline="") as file:
+        fieldnames = ["code", "date", "time", "qty", "name", "price", "total"]
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        if file.tell() == 0:
+            writer.writeheader()
+        for product in sales_log:
+            writer.writerow(product)
 
 def write_receipt(totals:list, actual_sales:list):
     # Actual sales =  [{name:str, qty:int, code:str, price:Decimal, total_per_unit:Decimal}]

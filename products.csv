@@ -1,6 +1,6 @@
-product_code,name,variable_cost,price,sell_quantity
-WD02,productB,1.00,1.10,2
-WD03,productC,0.50,1.00, 50
-WD04,productD,1.00,1.60, 38
-WD05,productE,0.20,0.80, 96
-WD06,productF,1.00,1.60, 15
+product_code,name,variable_cost,price,sell_quantity
+WD02,productB,1.00,1.10,21
+WD03,productC,0.50,1.00,69
+WD04,productD,1.00,1.60,46
+WD05,productE,0.20,0.80,102
+WD06,productF,1.00,1.60,915

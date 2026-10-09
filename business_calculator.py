@@ -3,6 +3,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 from decimal import Decimal
 import math
+import datetime
 
 root = tk.Tk()
 root.withdraw()
@@ -328,10 +329,31 @@ def update_saleslog_file():
     ...
 
 def write_receipt(totals:list, actual_sales:list):
-    receipt_format ="==========================" \
-                    ""
-    with open("receipt.txt", "w") as receipt:
-        ...    
+    # Actual sales =  [{name:str, qty:int, code:str, price:Decimal, total_per_unit:Decimal}]
+    name_company = read_csv_file("company_profile.csv")[0]["company_name"]
+    subtotal, tax, total_sum = totals
+    today = datetime.datetime.now()
+
+    receipt_format = ["^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+                    f"{name_company:^52}",
+                    "....................................................",
+                    f"    Date: {today.strftime("%m-%d-%y")}                        {today.strftime("%H:%M:%S")} ",
+                    "....................................................",
+                    "    Code | QTY | Description     |  Price  |  Total ",
+                    "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾"]
+    for products in actual_sales:
+        receipt_format.append(f" {products["code"]:^8} {products["qty"]:^5} {products["name"]:<17} {products["price"]:>9} {products["total_per_unit"]:>7} ")
+    
+    receipt_format.extend(["....................................................",
+                    f"                                    SUBTOTAL {subtotal:>7}",
+                    f"                                   TAX 7.5 % {tax:>7}",    
+                    f"                                       TOTAL {total_sum:>7}",
+                    "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"])
+                    
+
+    with open("receipt.txt", "w", encoding="utf-8") as receipt:
+        for line in receipt_format:
+            receipt.write(f"{line}\n")    
     
 # -----------------------Calculating Financial data based in products.csv and saved it in financial_report.csv
 def clean_products_data(filename):

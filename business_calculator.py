@@ -89,7 +89,7 @@ def register_user():
 def open_main_menu():
     global_data = master_financial_data("company_profile.csv")
     user_profile = read_csv_file("company_profile.csv")[0]
-    total_qty, total_revenue = calculate_breakeven_status()
+    total_qty, total_revenue = calculate_breakeven_status("financial_report.csv")
     company_name = user_profile["company_name"]
     user_name = user_profile["username"]
     fixed_cost = user_profile["fixed_cost"]
@@ -146,7 +146,6 @@ def register_sales():
     # Actual sales =  [{name:str, qty:int, code:str, price:Decimal, total_per_unit:Decimal}]
     actual_sales = []
 
-    root.withdraw()
     products_data = read_csv_file("products.csv")
     company_info = read_csv_file("company_profile.csv")[0]
     for p in products_data:
@@ -238,8 +237,8 @@ def register_sales():
         if actual_sales:
             subtotal, tax, total = master_calculate_totalprice(actual_sales)
             totals = [subtotal, tax, total]
-            update_products_file(actual_sales)
-            write_receipt(totals, actual_sales)
+            update_products_file(actual_sales,"products.csv")
+            write_receipt(totals, actual_sales, "company_profile.csv" )
             update_saleslog_file(actual_sales)
             messagebox.showinfo(title="Sales Log", message="Sales log file updated")
             close_window(open_main_menu, sales_window)
@@ -275,9 +274,79 @@ def register_sales():
     confirm_btn.grid(row=2, column=1)
     cancel_btn.grid(row=3, column=1)
     
+def create_table(columns_title:list, window, grid_row:int, grid_column:int, widths:list, datas:dict):
+    columns_name = columns_title[0]
+    titles = columns_title[1]
+    tree = ttk.Treeview(window, columns=columns_name, show="headings")
+    tree.grid(row=grid_row, column=grid_column)
+    # Create the headings
+    for column, title in zip(columns_name, titles):
+        tree.heading(column, text=title)
+
+    for column, width in zip(columns_name, widths):
+        tree.column(column, width=width)
+    
+    # Create the rows
+    for data in datas:
+        row = tuple(data[col] for col in columns_name)
+        tree.insert("", tk.END, values=row)
+
 
 def request_report():
-    ...
+    financial_report = read_csv_file("financial_report.csv")
+    window_report = None
+
+    # -------------Generators of Reports----------------------------- 
+    def create_revenue_qty_report(financial_report):
+        nonlocal window_report
+        revenue_qty_data = []
+        
+        if window_report is not None and window_report.winfo_exists():
+            window_report.lift()
+            return
+        
+        for product in financial_report:
+            code = product["code"]
+            name = product["name"]
+            qty = int(product["qty"])
+            revenue = round(Decimal(product["revenue_per_product"]), 2) 
+            revenue_qty_data.append({"code":code,
+                                    "name":name,
+                                    "qty":qty,
+                                    "revenue":f"${revenue}"})
+
+        columns = [["code", "name", "qty", "revenue"],["Code", "Name", "QTY", "Revenue"]]
+        widths = [80, 120, 80, 120]
+
+        window_report = tk.Toplevel(report_window)
+        
+        create_table(columns, window_report,0,0, widths,revenue_qty_data)
+
+    def create_bep_product():
+        ...
+        
+    # ------------------------End of report generators-----------------------------
+
+
+    report_window = tk.Toplevel(root)
+    report_window.title("Request a Report")
+    center_window(report_window, 450, 400) 
+
+
+    rev_qty_product_lbl = tk.Label(report_window, text="1. Revenue and Sell Amount per product")
+    rev_qty_product_btn = tk.Button(report_window, text="Request", command=lambda:create_revenue_qty_report(financial_report))
+
+    wasp_lbl = tk.Label(report_window, text="2. Weighted Average Selling Price per Product")
+    wasp_btn = tk.Button(report_window, text="Request", command="")
+
+    bep_product_lbl = tk.Label(report_window, text="1. Break Even per Product")
+    bep_product_btn = tk.Button(report_window, text="Request", command="")
+
+    bep_product_lbl = tk.Label(report_window, text="1. Break Even per Product")
+    bep_product_btn = tk.Button(report_window, text="Request", command="")
+
+    rev_qty_product_lbl.grid()
+    rev_qty_product_btn.grid()
 
 
 
@@ -310,8 +379,8 @@ def calculate_tax(tax_percentage, subtotal):
     return tax_percentage * subtotal
 
 # ----------------------------------------------------------
-def update_products_file(actual_sales):
-    updated_data = read_csv_file("products.csv")
+def update_products_file(actual_sales, filename):
+    updated_data = read_csv_file(filename)
     fieldnames = updated_data[0].keys()
 
     for products in updated_data:
@@ -319,7 +388,7 @@ def update_products_file(actual_sales):
             if products["name"] == sale["name"]:
                 products["sell_quantity"] = int(products["sell_quantity"]) + sale["qty"]
                 
-    with open("products.csv", "w", newline="") as products_data:
+    with open(filename, "w", newline="") as products_data:
         writer = csv.DictWriter(products_data, fieldnames=fieldnames)
         writer.writeheader()
         for product in updated_data:
@@ -341,9 +410,9 @@ def update_saleslog_file(actual_sales):
         for product in sales_log:
             writer.writerow(product)
 
-def write_receipt(totals:list, actual_sales:list):
+def write_receipt(totals:list, actual_sales:list, company_profile):
     # Actual sales =  [{name:str, qty:int, code:str, price:Decimal, total_per_unit:Decimal}]
-    name_company = read_csv_file("company_profile.csv")[0]["company_name"]
+    name_company = read_csv_file(company_profile)[0]["company_name"]
     subtotal, tax, total_sum = totals
     today = datetime.datetime.now()
 
@@ -420,8 +489,8 @@ def calculate_breakeven_revenue(products_data, fixed_cost):
     breakeven_revenue = Decimal(fixed_cost)/cm_ratio
     return breakeven_revenue
 
-def calculate_breakeven_status():
-    products = read_csv_file("financial_report.csv")
+def calculate_breakeven_status(financial_report):
+    products = read_csv_file(financial_report)
     total_qty = sum(Decimal(p["qty"]) for p in products)
     total_revenue = sum(Decimal(p["revenue_per_product"]) for p in products)
     return total_qty, total_revenue
@@ -442,8 +511,6 @@ def master_financial_data(profile):
     global_financial_data = {"total_breakeven":total_breakeven, "global_breakeven_revenue": breakeven_revenue, "wacm": wacm}
 
     return global_financial_data
-
-
 
 
 def main():

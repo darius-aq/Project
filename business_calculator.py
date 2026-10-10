@@ -244,7 +244,7 @@ def register_sales():
             update_products_file(actual_sales,"products.csv")
             write_receipt(totals, actual_sales, "company_profile.csv" )
             update_saleslog_file(actual_sales)
-            messagebox.showinfo(title="Sales Log", message="Sales log file updated")
+            messagebox.showinfo(title="Sales Log", message="Receipt document created - Sales log file updated")
             close_window(open_main_menu, sales_window)
         else:
             messagebox.showwarning(title="No products registered", message="No sales registered, add a product first")
@@ -281,7 +281,7 @@ def register_sales():
 
 
 # 
-def create_table(columns_title:list, window, grid_row:int, grid_column:int, widths:list, datas:dict):
+def create_table(columns_title:list, window, grid_row:int, grid_column:int, widths:list, datas:list):
     columns_name = columns_title[0]
     titles = columns_title[1]
     tree = ttk.Treeview(window, columns=columns_name, show="headings")
@@ -294,7 +294,7 @@ def create_table(columns_title:list, window, grid_row:int, grid_column:int, widt
         tree.column(column, width=width)
     
     # Create the rows
-    for data in datas:
+    for data in datas: #Data is a dictionary from datas list
         row = tuple(data[col] for col in columns_name)
         tree.insert("", tk.END, values=row)
 
@@ -303,7 +303,12 @@ def request_report():
     financial_report = read_csv_file("financial_report.csv")
 
     # -------------Generators of Reports----------------------------- 
+    def erase_frame(frame):
+        for widget in frame.winfo_children():
+            widget.destroy()
+
     def unit_be_status(financial_report, frame):
+        erase_frame(frame)
         unit_be_data = []
         title_lbl = tk.Label(frame, text="Unit Break-Even Progress Tracker")
         title_lbl.grid(row=0, column=0)
@@ -319,71 +324,105 @@ def request_report():
 
             unit_be_data.append({"code":code,
                                  "name":name,
-                                 "qty":qty,
                                  "sale_mix":f"%{sale_mix}",
+                                 "qty":qty,
                                  "break_even":break_even,
                                  "status":status})
 
-        columns = [["code", "name", "qty", "sale_mix","break_even","status"],["Code", "Name", "QTY", "Sale Mix","Break Even", "Status"]]
-        widths = [80, 120, 60, 75, 80, 100]
+        columns = [["code", "name", "sale_mix", "qty", "break_even","status"],["Code", "Name", "Sale Mix", "QTY", "Break Even", "Status"]]
+        widths = [80, 120, 75, 60, 80, 100]
         
         create_table(columns, frame,1,0, widths,unit_be_data)
 
     def financial_be_status(financial_report, frame):
+        erase_frame(frame)
         unit_be_data = []
-        title_lbl = tk.Label(frame, text="Unit Break-Even Progress Tracker")
+        title_lbl = tk.Label(frame, text="Financial Break-Even Progress Tracker")
+        title_lbl.grid(row=0, column=0)
+        
+        for product in financial_report:
+            code = product["code"]
+            name = product["name"]
+            unit_cm = Decimal(product["unit_cm"])
+            cm_ratio = Decimal(product["cm_ratio"]) * 100
+            sale_mix = round(Decimal(product["sale_mix"]), 2) * 100
+            revenue_per_product = Decimal(product["revenue_per_product"])
+            financial_breakeven = round(Decimal(product["financial_breakeven"]), 2)
+            variance = revenue_per_product - financial_breakeven
+            status = "✅ Reached" if variance >= 0 else "❌ Under Target"
+
+            unit_be_data.append({"code":code,
+                                 "name":name,
+                                 "unit_cm":f"${unit_cm:.2f}",
+                                 "cm_ratio":f"{cm_ratio:.2f}%",
+                                 "sale_mix":f"{sale_mix}%",
+                                 "revenue_per_product":f"{revenue_per_product:.2f}",
+                                 "financial_breakeven":financial_breakeven,
+                                 "status":status})
+
+        columns = [["code", "name", "unit_cm", "cm_ratio","sale_mix","revenue_per_product","financial_breakeven", "status"],["Code", "Name", "Unit CM", "CM Ratio","Sale Mix", "Revunue per product","Financial Breakeven", "Status"]]
+        widths = [80, 100, 60, 75, 80, 120, 120]
+        
+        create_table(columns, frame,1,0, widths,unit_be_data)
+        
+
+    def be_status_per_product(financial_report, frame):
+        erase_frame(frame)
+        unit_be_data = []
+        title_lbl = tk.Label(frame, text="Break-Even Progress per Product")
         title_lbl.grid(row=0, column=0)
         
         for product in financial_report:
             code = product["code"]
             name = product["name"]
             qty = int(product["qty"])
-            sale_mix = round(Decimal(product["sale_mix"]), 2) * 100
-            break_even = int(product["breakeven"])
-            variance = qty - break_even
-            status = "✅ Reached" if variance >= 0 else "❌ Under Target"
+            breakeven = int(product["breakeven"])
+            unit_variance = qty-breakeven
+            unit_be_status = "✅ Reached" if unit_variance >= 0 else "❌ Under Target"
+
+            revenue_per_product = Decimal(product["revenue_per_product"])
+            financial_breakeven = round(Decimal(product["financial_breakeven"]), 2)
+            financial_variance = revenue_per_product - financial_breakeven
+            financial_status = "✅ Reached" if financial_variance >= 0 else "❌ Under Target"
 
             unit_be_data.append({"code":code,
                                  "name":name,
                                  "qty":qty,
-                                 "sale_mix":f"%{sale_mix}",
-                                 "break_even":break_even,
-                                 "status":status})
+                                 "breakeven":breakeven,
+                                 "unit_variance":unit_variance,
+                                 "unit_be_status":unit_be_status,
+                                 "revenue_per_product":f"${revenue_per_product:.2f}",
+                                 "financial_breakeven":f"${financial_breakeven}",
+                                 "financial_variance":f"${financial_variance}",
+                                 "financial_status":financial_status})
 
-        columns = [["code", "name", "qty", "sale_mix","break_even","status"],["Code", "Name", "QTY", "Sale Mix","Break Even", "Status"]]
-        widths = [80, 120, 60, 75, 80, 100]
+        columns = [["code", "name", "qty", "breakeven","unit_variance","unit_be_status", "revenue_per_product", "financial_breakeven", "financial_variance", "financial_status"],["Code", "Name", "QTY", "BE Units","Variance","Unit Status", "Revenue", "BE Revenue", "Revenue Variance", "Financial Status"]]
+        widths = [80, 100, 45, 80, 100, 120, 120, 120, 120, 120]
         
         create_table(columns, frame,1,0, widths,unit_be_data)
-        
+
     # ------------------------End of report generators-----------------------------
 
     report_window = tk.Toplevel(root)
     report_window.title("Request a Report")
-    center_window(report_window, 550, 400) 
+    center_window(report_window, 1005, 400) 
 
-    buttons_frm = Frame(report_window, width=550, height=50, bg='green') 
-    buttons_frm.grid(row=0, column=0, sticky="ew")
-    buttons_frm.grid_propagate(False)
+    buttons_frm = Frame(report_window, width=1005, height=50) 
+    buttons_frm.pack(anchor="center")
 
-    # rev_qty_product_lbl = tk.Label(report_window, text="1. Revenue and Sell Amount per product")
     rev_qty_product_btn = tk.Button(buttons_frm, text="Global Unit Break-even\nProgress status", command=lambda:unit_be_status(financial_report, data_frm))
     rev_qty_product_btn.grid(row=0, column=0)
 
-    financial_be_btn = tk.Button(buttons_frm, text="Revenue Break-Even\nProgress status", command=lambda:financial_be_status(financial_report))
+    financial_be_btn = tk.Button(buttons_frm, text="Revenue Break-Even\nProgress status", command=lambda:financial_be_status(financial_report, data_frm))
     financial_be_btn.grid(row=0, column=1)
 
-    margins_rank_btn = tk.Button(buttons_frm, text="Break-Even Breakdown\nper Unit", command=lambda:financial_be_status(financial_report))
+    margins_rank_btn = tk.Button(buttons_frm, text="Break-Even Breakdown\nper Unit", command=lambda:be_status_per_product(financial_report, data_frm))
     margins_rank_btn.grid(row=0, column=2)
 
 
     
-    data_frm = Frame(report_window, width=550, height=350, bg="#000") 
-    data_frm.grid(row=1, column=0, sticky="ew")
-    data_frm.grid_propagate(False)
-    
-    lbl = tk.Label(data_frm, text="[==================================================]")
-    lbl.grid(row=0, column=0)
-    
+    data_frm = Frame(report_window, width=1005, height=350) 
+    data_frm.pack(anchor="center")
 
 
 
@@ -464,6 +503,7 @@ def write_receipt(totals:list, actual_sales:list, company_profile):
     name_company = read_csv_file(company_profile)[0]["company_name"]
     subtotal, tax, total_sum = totals
     today = datetime.datetime.now()
+    file_date = today.strftime("%m-%d-%y_%H-%M-%S") 
 
     receipt_format = ["^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
                     f"{name_company:^52}",
@@ -482,7 +522,7 @@ def write_receipt(totals:list, actual_sales:list, company_profile):
                     "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"])
                     
 
-    with open("receipt.txt", "w", encoding="utf-8") as receipt:
+    with open(f"receipt-{file_date}.txt", "w", encoding="utf-8") as receipt:
         for line in receipt_format:
             receipt.write(f"{line}\n")    
     
@@ -514,7 +554,7 @@ def clean_products_data(filename):
     return products_data_cleaned
 
 def calculate_financial_data(products_data):
-    total_units_sold = sum(prod["qty"] for prod in products_data)
+    total_units_sold = sum(prod["target_qty"] for prod in products_data)
     for prod in products_data:
         sales_mix = Decimal(prod["target_qty"]/total_units_sold)
         weighted_cm = sales_mix * prod["unit_cm"] 

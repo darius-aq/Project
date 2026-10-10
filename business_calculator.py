@@ -277,7 +277,10 @@ def register_sales():
     
     confirm_btn.grid(row=2, column=1)
     cancel_btn.grid(row=3, column=1)
-    
+
+
+
+# 
 def create_table(columns_title:list, window, grid_row:int, grid_column:int, widths:list, datas:dict):
     columns_name = columns_title[0]
     titles = columns_title[1]
@@ -322,20 +325,43 @@ def request_report():
                                  "status":status})
 
         columns = [["code", "name", "qty", "sale_mix","break_even","status"],["Code", "Name", "QTY", "Sale Mix","Break Even", "Status"]]
-        widths = [80, 120, 80, 80, 80, 100]
+        widths = [80, 120, 60, 75, 80, 100]
         
-        create_table(columns, frame,0,0, widths,unit_be_data)
+        create_table(columns, frame,1,0, widths,unit_be_data)
 
-    def create_bep_product():
-        ...
+    def financial_be_status(financial_report, frame):
+        unit_be_data = []
+        title_lbl = tk.Label(frame, text="Unit Break-Even Progress Tracker")
+        title_lbl.grid(row=0, column=0)
+        
+        for product in financial_report:
+            code = product["code"]
+            name = product["name"]
+            qty = int(product["qty"])
+            sale_mix = round(Decimal(product["sale_mix"]), 2) * 100
+            break_even = int(product["breakeven"])
+            variance = qty - break_even
+            status = "✅ Reached" if variance >= 0 else "❌ Under Target"
+
+            unit_be_data.append({"code":code,
+                                 "name":name,
+                                 "qty":qty,
+                                 "sale_mix":f"%{sale_mix}",
+                                 "break_even":break_even,
+                                 "status":status})
+
+        columns = [["code", "name", "qty", "sale_mix","break_even","status"],["Code", "Name", "QTY", "Sale Mix","Break Even", "Status"]]
+        widths = [80, 120, 60, 75, 80, 100]
+        
+        create_table(columns, frame,1,0, widths,unit_be_data)
         
     # ------------------------End of report generators-----------------------------
 
     report_window = tk.Toplevel(root)
     report_window.title("Request a Report")
-    center_window(report_window, 450, 400) 
+    center_window(report_window, 550, 400) 
 
-    buttons_frm = Frame(report_window, width=450, height=50, bg='green') 
+    buttons_frm = Frame(report_window, width=550, height=50, bg='green') 
     buttons_frm.grid(row=0, column=0, sticky="ew")
     buttons_frm.grid_propagate(False)
 
@@ -343,15 +369,15 @@ def request_report():
     rev_qty_product_btn = tk.Button(buttons_frm, text="Global Unit Break-even\nProgress status", command=lambda:unit_be_status(financial_report, data_frm))
     rev_qty_product_btn.grid(row=0, column=0)
 
-    financial_be_btn = tk.Button(buttons_frm, text="Revenue Break-Even\nProgress status", command=lambda:create_revenue_qty_report(financial_report))
+    financial_be_btn = tk.Button(buttons_frm, text="Revenue Break-Even\nProgress status", command=lambda:financial_be_status(financial_report))
     financial_be_btn.grid(row=0, column=1)
 
-    margins_rank_btn = tk.Button(buttons_frm, text="Break-Even Breakdown\nper Unit", command=lambda:create_revenue_qty_report(financial_report))
+    margins_rank_btn = tk.Button(buttons_frm, text="Break-Even Breakdown\nper Unit", command=lambda:financial_be_status(financial_report))
     margins_rank_btn.grid(row=0, column=2)
 
 
     
-    data_frm = Frame(report_window, height=50, bg="#000") 
+    data_frm = Frame(report_window, width=550, height=350, bg="#000") 
     data_frm.grid(row=1, column=0, sticky="ew")
     data_frm.grid_propagate(False)
     
@@ -501,18 +527,23 @@ def calculate_financial_data(products_data):
 
 def save_financial_data(save_filename, products):
     with open(save_filename, "w", newline="") as file:
-        fieldnames = ["code", "name", "v_cost", "price", "qty", "unit_cm", "cm_ratio", "target_qty", "sale_mix", "weighted_cm", "wasp", "revenue_per_product", "breakeven"]
+        fieldnames = ["code", "name", "v_cost", "price", "qty", "unit_cm", "cm_ratio", "target_qty", "sale_mix", "weighted_cm", "wasp", "revenue_per_product", "breakeven", "financial_breakeven"]
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
         for product in products:
             writer.writerow(product)
 
-def calculate_breakeven(fixed_cost, wacm, products_sale_mix):
+def calculate_breakeven(fixed_cost, wacm, products_sale_mix, products_prices):
     total_breakeven = Decimal(fixed_cost) / wacm
     products_unit_breakeven = []
+    financial_unit_breakeven = []
     for sale_mix in products_sale_mix:
         products_unit_breakeven.append(math.ceil(sale_mix * total_breakeven))
-    return total_breakeven, products_unit_breakeven    
+
+    for break_even, price in zip(products_unit_breakeven, products_prices):
+        financial_unit_breakeven.append(Decimal(break_even * price))
+
+    return total_breakeven, products_unit_breakeven, financial_unit_breakeven    
 
 def calculate_breakeven_revenue(products_data, fixed_cost):
     total_wasp = sum(p["wasp"] for p in products_data)
@@ -533,10 +564,11 @@ def master_financial_data(profile):
     products_data = clean_products_data("products.csv")
     products_data, wacm = calculate_financial_data(products_data)
     
-    total_breakeven, products_unit_breakeven = calculate_breakeven(company_profile["fixed_cost"], wacm, (p["sale_mix"] for p in products_data))
+    total_breakeven, products_unit_breakeven, financial_unit_breakeven = calculate_breakeven(company_profile["fixed_cost"], wacm, (p["sale_mix"] for p in products_data),(p["price"] for p in products_data))
     breakeven_revenue = calculate_breakeven_revenue(products_data, company_profile["fixed_cost"]) 
-    for product, breakeven in zip(products_data, products_unit_breakeven):
+    for product, breakeven, price in zip(products_data, products_unit_breakeven, financial_unit_breakeven):
         product["breakeven"] = breakeven 
+        product["financial_breakeven"] = price
 
     save_financial_data("financial_report.csv", products_data)
 

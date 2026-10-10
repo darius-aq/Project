@@ -1,6 +1,6 @@
 import csv
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import messagebox, ttk, Frame
 from decimal import Decimal
 import math
 import datetime
@@ -86,6 +86,8 @@ def register_user():
     # root.wait_window(register_window) #This always goes at the end of a generate window function to stoip all the program
 
 
+# ==================================================  MAIN MENU  ===============================================
+
 def open_main_menu():
     global_data = master_financial_data("company_profile.csv")
     user_profile = read_csv_file("company_profile.csv")[0]
@@ -100,6 +102,7 @@ def open_main_menu():
     root.title("Main Menu")
     center_window(root, 300, 450)
 
+    button_target = tk.Button(root, text="Auto-Update\nSale Targets", command=lambda:auto_update_targets("products.csv"))
     title_lbl = tk.Label(root, text=f"{company_name}\nBusiness calculator")
     button_profile = tk.Button(root, text="Edit\nProfile", command= lambda:close_window(register_user, root))
     owner_lbl = tk.Label(root, text=f"Owner: {user_name}")
@@ -136,6 +139,7 @@ def open_main_menu():
     separator3.grid(row=10, column=0, padx=15, pady=5, columnspan=2, sticky="ew")
 
     button_purchase.grid(row=11, column=0, padx=15, pady=15, sticky="w")
+    button_target.grid(row=11, column=0, padx=15, pady=15)
     button_report.grid(row=11, column=0, padx=15, pady=15, sticky="e")
 
 
@@ -309,14 +313,20 @@ def request_report():
             code = product["code"]
             name = product["name"]
             qty = int(product["qty"])
-            revenue = round(Decimal(product["revenue_per_product"]), 2) 
+            sale_mix = round(Decimal(product["sale_mix"]), 2) * 100
+            break_even = int(product["breakeven"])
+            variance = qty - break_even
+            status = "✅ Reached" if variance > 0 else "❌ Under Target"
+
             revenue_qty_data.append({"code":code,
                                     "name":name,
                                     "qty":qty,
-                                    "revenue":f"${revenue}"})
+                                    "sale_mix":f"%{sale_mix}",
+                                    "break_even":break_even,
+                                    "status":status})
 
-        columns = [["code", "name", "qty", "revenue"],["Code", "Name", "QTY", "Revenue"]]
-        widths = [80, 120, 80, 120]
+        columns = [["code", "name", "qty", "sale_mix","break_even","status"],["Code", "Name", "QTY", "Sale Mix","Break Even", "Status"]]
+        widths = [80, 120, 80, 80, 80, 100]
 
         window_report = tk.Toplevel(report_window)
         
@@ -327,34 +337,53 @@ def request_report():
         
     # ------------------------End of report generators-----------------------------
 
-
     report_window = tk.Toplevel(root)
     report_window.title("Request a Report")
     center_window(report_window, 450, 400) 
 
+    buttons_frm = Frame(report_window, width=450, height=50, bg='green') 
+    buttons_frm.grid(row=0, column=0, sticky="ew")
+    buttons_frm.grid_propagate(False)
 
-    rev_qty_product_lbl = tk.Label(report_window, text="1. Revenue and Sell Amount per product")
-    rev_qty_product_btn = tk.Button(report_window, text="Request", command=lambda:create_revenue_qty_report(financial_report))
+    # rev_qty_product_lbl = tk.Label(report_window, text="1. Revenue and Sell Amount per product")
+    rev_qty_product_btn = tk.Button(buttons_frm, text="Global Unit Break-even\nProgress status", command=lambda:create_revenue_qty_report(financial_report))
+    rev_qty_product_btn.grid(row=0, column=0)
 
-    wasp_lbl = tk.Label(report_window, text="2. Weighted Average Selling Price per Product")
-    wasp_btn = tk.Button(report_window, text="Request", command="")
+    financial_be_btn = tk.Button(buttons_frm, text="Revenue Break-Even\nProgress status", command=lambda:create_revenue_qty_report(financial_report))
+    financial_be_btn.grid(row=0, column=1)
 
-    bep_product_lbl = tk.Label(report_window, text="1. Break Even per Product")
-    bep_product_btn = tk.Button(report_window, text="Request", command="")
+    margins_rank_btn = tk.Button(buttons_frm, text="Break-Even Breakdown\nper Unit", command=lambda:create_revenue_qty_report(financial_report))
+    margins_rank_btn.grid(row=0, column=2)
 
-    bep_product_lbl = tk.Label(report_window, text="1. Break Even per Product")
-    bep_product_btn = tk.Button(report_window, text="Request", command="")
 
-    rev_qty_product_lbl.grid()
-    rev_qty_product_btn.grid()
+    
+    data_frm = Frame(report_window, height=50, bg="#000") 
+    data_frm.grid(row=1, column=0, sticky="ew")
+    data_frm.grid_propagate(False)
+    
+    lbl = tk.Label(data_frm, text="[==================================================]")
+    lbl.grid(row=0, column=0)
+    
 
 
 
 
 # =========================================Logical and MATH Functions =================================
 
-
-
+def auto_update_targets(filename):
+    products = read_csv_file(filename)
+    fieldnames = products[0].keys()
+    
+    for product in products:
+        product["target_qty"] = product["sell_quantity"]
+   
+    with open(filename, "w", newline="") as products_data:
+        writer = csv.DictWriter(products_data, fieldnames=fieldnames)
+        writer.writeheader()
+        for product in products:
+            writer.writerow(product)
+    
+    
 # ---------------MAIN READER---------------------------
 def read_csv_file(filename):
     with open(filename, "r") as file:
@@ -447,14 +476,16 @@ def clean_products_data(filename):
         v_cost = Decimal(row["variable_cost"])
         price = Decimal(row["price"])
         qty = int(row["sell_quantity"])
-        unit_cm = price - v_cost #Contribution Margin 
+        unit_cm = price - v_cost #Contribution Margin
+        cm_ratio = Decimal(unit_cm/price) 
         products_data_cleaned.append({
             "code": code,
             "name": name,
             "v_cost": v_cost,
             "price": price,
             "qty": qty,
-            "unit_cm": unit_cm})
+            "unit_cm": unit_cm,
+            "cm_ratio":cm_ratio})
     return products_data_cleaned
 
 def calculate_financial_data(products_data):
@@ -471,7 +502,7 @@ def calculate_financial_data(products_data):
 
 def save_financial_data(save_filename, products):
     with open(save_filename, "w", newline="") as file:
-        fieldnames = ["code", "name", "v_cost", "price", "qty", "unit_cm", "sale_mix", "weighted_cm", "wasp", "revenue_per_product", "breakeven"]
+        fieldnames = ["code", "name", "v_cost", "price", "qty", "unit_cm", "cm_ratio", "sale_mix", "weighted_cm", "wasp", "revenue_per_product", "breakeven"]
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
         for product in products:
@@ -485,7 +516,9 @@ def calculate_breakeven(fixed_cost, wacm, products_sale_mix):
     return total_breakeven, products_unit_breakeven    
 
 def calculate_breakeven_revenue(products_data, fixed_cost):
-    cm_ratio = sum(p["wasp"] for p in products_data)
+    total_wasp = sum(p["wasp"] for p in products_data)
+    blended_cm = sum(p["weighted_cm"] for p in products_data)
+    cm_ratio = blended_cm / total_wasp
     breakeven_revenue = Decimal(fixed_cost)/cm_ratio
     return breakeven_revenue
 

@@ -298,16 +298,12 @@ def create_table(columns_title:list, window, grid_row:int, grid_column:int, widt
 
 def request_report():
     financial_report = read_csv_file("financial_report.csv")
-    window_report = None
 
     # -------------Generators of Reports----------------------------- 
-    def create_revenue_qty_report(financial_report):
-        nonlocal window_report
-        revenue_qty_data = []
-        
-        if window_report is not None and window_report.winfo_exists():
-            window_report.lift()
-            return
+    def unit_be_status(financial_report, frame):
+        unit_be_data = []
+        title_lbl = tk.Label(frame, text="Unit Break-Even Progress Tracker")
+        title_lbl.grid(row=0, column=0)
         
         for product in financial_report:
             code = product["code"]
@@ -316,21 +312,19 @@ def request_report():
             sale_mix = round(Decimal(product["sale_mix"]), 2) * 100
             break_even = int(product["breakeven"])
             variance = qty - break_even
-            status = "✅ Reached" if variance > 0 else "❌ Under Target"
+            status = "✅ Reached" if variance >= 0 else "❌ Under Target"
 
-            revenue_qty_data.append({"code":code,
-                                    "name":name,
-                                    "qty":qty,
-                                    "sale_mix":f"%{sale_mix}",
-                                    "break_even":break_even,
-                                    "status":status})
+            unit_be_data.append({"code":code,
+                                 "name":name,
+                                 "qty":qty,
+                                 "sale_mix":f"%{sale_mix}",
+                                 "break_even":break_even,
+                                 "status":status})
 
         columns = [["code", "name", "qty", "sale_mix","break_even","status"],["Code", "Name", "QTY", "Sale Mix","Break Even", "Status"]]
         widths = [80, 120, 80, 80, 80, 100]
-
-        window_report = tk.Toplevel(report_window)
         
-        create_table(columns, window_report,0,0, widths,revenue_qty_data)
+        create_table(columns, frame,0,0, widths,unit_be_data)
 
     def create_bep_product():
         ...
@@ -346,7 +340,7 @@ def request_report():
     buttons_frm.grid_propagate(False)
 
     # rev_qty_product_lbl = tk.Label(report_window, text="1. Revenue and Sell Amount per product")
-    rev_qty_product_btn = tk.Button(buttons_frm, text="Global Unit Break-even\nProgress status", command=lambda:create_revenue_qty_report(financial_report))
+    rev_qty_product_btn = tk.Button(buttons_frm, text="Global Unit Break-even\nProgress status", command=lambda:unit_be_status(financial_report, data_frm))
     rev_qty_product_btn.grid(row=0, column=0)
 
     financial_be_btn = tk.Button(buttons_frm, text="Revenue Break-Even\nProgress status", command=lambda:create_revenue_qty_report(financial_report))
@@ -467,7 +461,10 @@ def write_receipt(totals:list, actual_sales:list, company_profile):
             receipt.write(f"{line}\n")    
     
 # -----------------------Calculating Financial data based in products.csv and saved it in financial_report.csv
-def clean_products_data(filename):
+def clean_products_data(filename):   
+    """
+    Cleans the original product data, and add simple calculations. Unit Contribution Margin and Contribution Margin ratio
+    """
     products_data = read_csv_file(filename)
     products_data_cleaned = []
     for row in products_data:
@@ -476,6 +473,7 @@ def clean_products_data(filename):
         v_cost = Decimal(row["variable_cost"])
         price = Decimal(row["price"])
         qty = int(row["sell_quantity"])
+        target_qty = int(row["target_qty"])
         unit_cm = price - v_cost #Contribution Margin
         cm_ratio = Decimal(unit_cm/price) 
         products_data_cleaned.append({
@@ -485,13 +483,14 @@ def clean_products_data(filename):
             "price": price,
             "qty": qty,
             "unit_cm": unit_cm,
-            "cm_ratio":cm_ratio})
+            "cm_ratio":cm_ratio,
+            "target_qty":target_qty})
     return products_data_cleaned
 
 def calculate_financial_data(products_data):
     total_units_sold = sum(prod["qty"] for prod in products_data)
     for prod in products_data:
-        sales_mix = Decimal(prod["qty"]/total_units_sold)
+        sales_mix = Decimal(prod["target_qty"]/total_units_sold)
         weighted_cm = sales_mix * prod["unit_cm"] 
         prod["sale_mix"] = sales_mix
         prod["weighted_cm"] = weighted_cm
@@ -502,7 +501,7 @@ def calculate_financial_data(products_data):
 
 def save_financial_data(save_filename, products):
     with open(save_filename, "w", newline="") as file:
-        fieldnames = ["code", "name", "v_cost", "price", "qty", "unit_cm", "cm_ratio", "sale_mix", "weighted_cm", "wasp", "revenue_per_product", "breakeven"]
+        fieldnames = ["code", "name", "v_cost", "price", "qty", "unit_cm", "cm_ratio", "target_qty", "sale_mix", "weighted_cm", "wasp", "revenue_per_product", "breakeven"]
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
         for product in products:

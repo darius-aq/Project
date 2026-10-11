@@ -1,6 +1,6 @@
 product_code,name,variable_cost,price,sell_quantity,target_qty
-WD02,productB,1.00,1.10,83,80
-WD03,productC,0.50,1.00,90,84
-WD04,productD,1.00,1.60,93,93
-WD05,productE,0.20,0.80,64,64
-WD06,productF,1.00,1.60,31,26
+TC01,Wireless Mouse,8.50,25.00,210,180
+TC02,Mechanical Keyboard,22.00,65.00,140,150
+TC03,USB-C Hub,6.00,18.00,320,300
+TC04,Gaming Headset,18.00,49.99,95,110
+TC05,Mouse Pad XL,3.00,14.99,270,250

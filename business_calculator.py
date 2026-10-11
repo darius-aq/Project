@@ -4,6 +4,7 @@ from tkinter import messagebox, ttk, Frame
 from decimal import Decimal
 import math
 import datetime
+import sys
 
 root = tk.Tk()
 root.withdraw()
@@ -62,6 +63,8 @@ def register_user():
                     
         except ValueError:
             messagebox.showerror(title="Invalid number", message="Please, use a valid number")
+        except PermissionError:
+            messagebox.showerror(title="Permission Denied", message=f"Access denied to open sales_log.csv data not saved.\nIf another program has the file open, please CLOSE IT and try again")
     
     # ----------------widgets for register user--------------------
     title_label = tk.Label(register_window, text="Enter your information", font=("Arial", 16, "bold"))
@@ -90,6 +93,7 @@ def register_user():
 
 def open_main_menu():
     global_data = master_financial_data("company_profile.csv")
+    if not global_data: return
     user_profile = read_csv_file("company_profile.csv")[0]
     total_qty, total_revenue = calculate_breakeven_status("financial_report.csv")
     company_name = user_profile["company_name"]
@@ -241,9 +245,13 @@ def register_sales():
         if actual_sales:
             subtotal, tax, total = master_calculate_totalprice(actual_sales)
             totals = [subtotal, tax, total]
-            update_products_file(actual_sales,"products.csv")
+            try:
+                update_products_file(actual_sales,"products.csv")
+                update_saleslog_file(actual_sales)
+            except PermissionError:
+                messagebox.showerror(title="Permission Denied", message=f"Access denied to open sales_log.csv data not saved.\nIf another program has the file open, please CLOSE IT and try again")
+                return
             write_receipt(totals, actual_sales, "company_profile.csv" )
-            update_saleslog_file(actual_sales)
             messagebox.showinfo(title="Sales Log", message="Receipt document created - Sales log file updated")
             close_window(open_main_menu, sales_window)
         else:
@@ -320,7 +328,11 @@ def request_report():
 
         # Progression Bar
         percent = round(total_qty/total_breakeven* 100, 2)
-        progress_bar = "█" * math.ceil(percent) + "-" * (100 - math.ceil(percent))
+        if percent > 100:
+            percent = 100
+        
+        progress_bar = "=" * (math.ceil(percent)-1) + ">" + "-" * (100 - math.ceil(percent))
+
         report_lbl = tk.Label(frame, text=global_data_report)
         report_lbl.grid(row=1, column=0)
 
@@ -338,7 +350,7 @@ def request_report():
 
             unit_be_data.append({"code":code,
                                  "name":name,
-                                 "sale_mix":f"%{sale_mix:.2f}",
+                                 "sale_mix":f"{sale_mix:.2f}%",
                                  "qty":qty,
                                  "break_even":break_even,
                                  "status":status})
@@ -361,7 +373,10 @@ def request_report():
 
         # Progression Bar
         percent = round(unit_total_revenue/financial_be_total* 100, 2)
-        progress_bar = "█" * math.ceil(percent) + "-" * (100 - math.ceil(percent))
+        if percent > 100:
+            percent = 100
+
+        progress_bar = "=" * (math.ceil(percent)-1) + ">" + "-" * (100 - math.ceil(percent))
         report_lbl = tk.Label(frame, text=global_data_report)
         report_lbl.grid(row=1, column=0)
 
@@ -435,7 +450,7 @@ def request_report():
     global_data = master_financial_data("company_profile.csv")
     unit_be_total = global_data["total_breakeven"]
     financial_be_total = global_data["global_breakeven_revenue"]
-
+    
     total_qty, total_revenue = calculate_breakeven_status("financial_report.csv")
 
 
@@ -473,7 +488,6 @@ def auto_update_targets(filename):
     
     for product in products:
         product["target_qty"] = product["sell_quantity"]
-   
     with open(filename, "w", newline="") as products_data:
         writer = csv.DictWriter(products_data, fieldnames=fieldnames)
         writer.writeheader()
@@ -483,10 +497,16 @@ def auto_update_targets(filename):
     
 # ---------------MAIN READER---------------------------
 def read_csv_file(filename):
-    with open(filename, "r") as file:
-        data_list = csv.DictReader(file, delimiter=",")
-        return list(data_list)
-
+    try:
+        with open(filename, "r") as file:
+            data_list = csv.DictReader(file, delimiter=",")
+            return list(data_list)
+    except FileNotFoundError:
+        messagebox.showerror(title="FileNotFound", message="It was not possible to find the required file.\nBe sure the files has the correct names and run the program")
+        sys.exit(1)
+    except PermissionError:
+        messagebox.showerror(title="Permission Denied", message=f"Access denied to open {filename}.\nIf another program has the file open, please close it and run the program again")
+        sys.exit(1)
 # ...................Calculate total and detail for sales.....................
 def master_calculate_totalprice(actual_sales):
     subtotal = round(calculate_subtotal(actual_sales), 2)
@@ -513,13 +533,13 @@ def update_products_file(actual_sales, filename):
         for sale in actual_sales:
             if products["name"] == sale["name"]:
                 products["sell_quantity"] = int(products["sell_quantity"]) + sale["qty"]
-                
+              
     with open(filename, "w", newline="") as products_data:
         writer = csv.DictWriter(products_data, fieldnames=fieldnames)
         writer.writeheader()
         for product in updated_data:
             writer.writerow(product)
-
+    
 def update_saleslog_file(actual_sales):
     today = datetime.datetime.now()
     date = today.strftime("%m-%d-%y")
@@ -527,7 +547,7 @@ def update_saleslog_file(actual_sales):
     sales_log = []
     for products in actual_sales:
         sales_log.append({"code":products["code"],"date":date, "time":time,"qty":products["qty"], "name":products["name"], "price":products["price"], "total":products["total_per_unit"]} )
-    
+
     with open("sales_log.csv", "a", newline="") as file:
         fieldnames = ["code", "date", "time", "qty", "name", "price", "total"]
         writer = csv.DictWriter(file, fieldnames=fieldnames)
@@ -571,24 +591,40 @@ def clean_products_data(filename):
     """
     products_data = read_csv_file(filename)
     products_data_cleaned = []
+    if len(products_data[0]) != 6:
+        messagebox.showwarning(title="Incorrect data fields", message="The number of fields in the file 'products.csv' is incorrect.\nCheck REAMDE.md for more information")
+        return []
+
     for row in products_data:
-        code = row["product_code"]
-        name = row["name"]
-        v_cost = Decimal(row["variable_cost"])
-        price = Decimal(row["price"])
-        qty = int(row["sell_quantity"])
-        target_qty = int(row["target_qty"])
-        unit_cm = price - v_cost #Contribution Margin
-        cm_ratio = Decimal(unit_cm/price) 
-        products_data_cleaned.append({
-            "code": code,
-            "name": name,
-            "v_cost": v_cost,
-            "price": price,
-            "qty": qty,
-            "unit_cm": unit_cm,
-            "cm_ratio":cm_ratio,
-            "target_qty":target_qty})
+        if Decimal(row["variable_cost"]) > Decimal(row["price"]):
+            messagebox.showwarning(title="Invalid Costs", message="Your Variable Cost can't be higher than your prices.\nThis will cause errors in the calculation and lose in your business")
+            return []
+    try:
+        for row in products_data:
+            code = row["product_code"]
+            name = row["name"]
+            v_cost = Decimal(row["variable_cost"])
+            price = Decimal(row["price"])
+            qty = int(row["sell_quantity"])
+            target_qty = int(row["target_qty"])
+            unit_cm = price - v_cost #Contribution Margin
+            cm_ratio = Decimal(unit_cm/price) 
+            products_data_cleaned.append({
+                "code": code,
+                "name": name,
+                "v_cost": v_cost,
+                "price": price,
+                "qty": qty,
+                "unit_cm": unit_cm,
+                "cm_ratio":cm_ratio,
+                "target_qty":target_qty})
+    except KeyError:
+        messagebox.showerror(title="Field not found", message="The required fields could not be found in the products.csv.\nBe sure to follow the format provided in README.md")
+        return []
+    except ValueError:
+        messagebox.showerror(title="Incorrect data", message="Fields don't have the correct data type. It is not possible to read")
+        return []
+    
     return products_data_cleaned
 
 def calculate_financial_data(products_data):
@@ -604,12 +640,15 @@ def calculate_financial_data(products_data):
     return products_data, wacm
 
 def save_financial_data(save_filename, products):
-    with open(save_filename, "w", newline="") as file:
-        fieldnames = ["code", "name", "v_cost", "price", "qty", "unit_cm", "cm_ratio", "target_qty", "sale_mix", "weighted_cm", "wasp", "revenue_per_product", "breakeven", "financial_breakeven"]
-        writer = csv.DictWriter(file, fieldnames=fieldnames)
-        writer.writeheader()
-        for product in products:
-            writer.writerow(product)
+    try:
+        with open(save_filename, "w", newline="") as file:
+            fieldnames = ["code", "name", "v_cost", "price", "qty", "unit_cm", "cm_ratio", "target_qty", "sale_mix", "weighted_cm", "wasp", "revenue_per_product", "breakeven", "financial_breakeven"]
+            writer = csv.DictWriter(file, fieldnames=fieldnames)
+            writer.writeheader()
+            for product in products:
+                writer.writerow(product)
+    except PermissionError:
+        messagebox.showerror(title="Permission Denied", message=f"Access denied to open {save_filename} data not saved.\nIf another program has the file open, please CLOSE IT and try again")
 
 def calculate_breakeven(fixed_cost, wacm, products_sale_mix, products_prices):
     total_breakeven = int(round(Decimal(fixed_cost) / wacm, 0))
@@ -640,6 +679,7 @@ def master_financial_data(profile):
     company_profile = read_csv_file(profile)[0]
     # ------------calculus for reading data------------------
     products_data = clean_products_data("products.csv")
+    if products_data == []: return
     products_data, wacm = calculate_financial_data(products_data)
     
     total_breakeven, products_unit_breakeven, financial_unit_breakeven = calculate_breakeven(company_profile["fixed_cost"], wacm, (p["sale_mix"] for p in products_data),(p["price"] for p in products_data))

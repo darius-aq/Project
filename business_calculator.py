@@ -21,6 +21,7 @@ def disable_event():
 
 # ----------------------Centering Algortim ------------------
 def center_window(window_name, width = 400, heigth = 400):
+    window_name.resizable(0, 0)
     width_window = width
     heigth_window = heigth
     width_screen = root.winfo_screenwidth()

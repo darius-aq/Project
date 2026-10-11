@@ -526,7 +526,7 @@ def calculate_tax(tax_percentage, subtotal):
     return tax_percentage * subtotal
 
 # ----------------------------------------------------------
-def update_products_file(actual_sales, filename):
+def update_products_file(actual_sales:list, filename):
     updated_data = read_csv_file(filename)
     fieldnames = updated_data[0].keys()
 

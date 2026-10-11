@@ -96,7 +96,7 @@ def open_main_menu():
     user_name = user_profile["username"]
     fixed_cost = user_profile["fixed_cost"]
     global_breakeven_revenue = global_data["global_breakeven_revenue"]
-    total_breakeven = round(global_data["total_breakeven"])
+    total_breakeven = round(global_data["total_breakeven"], 2)
     
     root.deiconify()
     root.title("Main Menu")
@@ -307,24 +307,38 @@ def request_report():
         for widget in frame.winfo_children():
             widget.destroy()
 
-    def unit_be_status(financial_report, frame):
+    def unit_be_status(financial_report, frame, total_breakeven, total_qty):
         erase_frame(frame)
         unit_be_data = []
-        title_lbl = tk.Label(frame, text="Unit Break-Even Progress Tracker")
+        title_lbl = tk.Label(frame, text="### Unit Break-Even Progress Tracker ###")
         title_lbl.grid(row=0, column=0)
+
+        global_data_report = ("+------------------------+               +--------------------------+\n"
+                              "  Target Unit Sales                             Actual Status         \n"
+                             f"  {total_breakeven:<23}                           {total_qty:<25} \n"
+                              "+------------------------+               +--------------------------+")
+
+        # Progression Bar
+        percent = round(total_qty/total_breakeven* 100, 2)
+        progress_bar = "█" * math.ceil(percent) + "-" * (100 - math.ceil(percent))
+        report_lbl = tk.Label(frame, text=global_data_report)
+        report_lbl.grid(row=1, column=0)
+
+        report_bar_lbl = tk.Label(frame, text=f"Progress: [{progress_bar}] (%{percent}) ")
+        report_bar_lbl.grid(row=2, column=0)
         
         for product in financial_report:
             code = product["code"]
             name = product["name"]
             qty = int(product["qty"])
-            sale_mix = round(Decimal(product["sale_mix"]), 2) * 100
+            sale_mix = Decimal(product["sale_mix"]) * 100
             break_even = int(product["breakeven"])
             variance = qty - break_even
             status = "✅ Reached" if variance >= 0 else "❌ Under Target"
 
             unit_be_data.append({"code":code,
                                  "name":name,
-                                 "sale_mix":f"%{sale_mix}",
+                                 "sale_mix":f"%{sale_mix:.2f}",
                                  "qty":qty,
                                  "break_even":break_even,
                                  "status":status})
@@ -332,20 +346,34 @@ def request_report():
         columns = [["code", "name", "sale_mix", "qty", "break_even","status"],["Code", "Name", "Sale Mix", "QTY", "Break Even", "Status"]]
         widths = [80, 120, 75, 60, 80, 100]
         
-        create_table(columns, frame,1,0, widths,unit_be_data)
+        create_table(columns, frame,3,0, widths,unit_be_data)
 
-    def financial_be_status(financial_report, frame):
+    def financial_be_status(financial_report, frame, financial_be_total, unit_total_revenue):
         erase_frame(frame)
         unit_be_data = []
-        title_lbl = tk.Label(frame, text="Financial Break-Even Progress Tracker")
+        title_lbl = tk.Label(frame, text="### Financial Break-Even Progress Tracker ###")
         title_lbl.grid(row=0, column=0)
+
+        global_data_report = ("+------------------------+               +--------------------------+\n"
+                              "  Target Revenue                                Actual Status         \n"
+                             f"    ${financial_be_total:<23.2f}                           ${unit_total_revenue:<25}\n"
+                              "+------------------------+               +--------------------------+")
+
+        # Progression Bar
+        percent = round(unit_total_revenue/financial_be_total* 100, 2)
+        progress_bar = "█" * math.ceil(percent) + "-" * (100 - math.ceil(percent))
+        report_lbl = tk.Label(frame, text=global_data_report)
+        report_lbl.grid(row=1, column=0)
+
+        report_bar_lbl = tk.Label(frame, text=f"Progress: [{progress_bar}] ({percent}%) ")
+        report_bar_lbl.grid(row=2, column=0)
         
         for product in financial_report:
             code = product["code"]
             name = product["name"]
             unit_cm = Decimal(product["unit_cm"])
             cm_ratio = Decimal(product["cm_ratio"]) * 100
-            sale_mix = round(Decimal(product["sale_mix"]), 2) * 100
+            sale_mix = Decimal(product["sale_mix"]) * 100
             revenue_per_product = Decimal(product["revenue_per_product"])
             financial_breakeven = round(Decimal(product["financial_breakeven"]), 2)
             variance = revenue_per_product - financial_breakeven
@@ -355,7 +383,7 @@ def request_report():
                                  "name":name,
                                  "unit_cm":f"${unit_cm:.2f}",
                                  "cm_ratio":f"{cm_ratio:.2f}%",
-                                 "sale_mix":f"{sale_mix}%",
+                                 "sale_mix":f"{sale_mix:.2f}%",
                                  "revenue_per_product":f"{revenue_per_product:.2f}",
                                  "financial_breakeven":financial_breakeven,
                                  "status":status})
@@ -363,13 +391,13 @@ def request_report():
         columns = [["code", "name", "unit_cm", "cm_ratio","sale_mix","revenue_per_product","financial_breakeven", "status"],["Code", "Name", "Unit CM", "CM Ratio","Sale Mix", "Revunue per product","Financial Breakeven", "Status"]]
         widths = [80, 100, 60, 75, 80, 120, 120]
         
-        create_table(columns, frame,1,0, widths,unit_be_data)
+        create_table(columns, frame,3,0, widths,unit_be_data)
         
 
     def be_status_per_product(financial_report, frame):
         erase_frame(frame)
         unit_be_data = []
-        title_lbl = tk.Label(frame, text="Break-Even Progress per Product")
+        title_lbl = tk.Label(frame, text="### Break-Even Progress per Product ###\n BE: Break Even")
         title_lbl.grid(row=0, column=0)
         
         for product in financial_report:
@@ -383,6 +411,7 @@ def request_report():
             revenue_per_product = Decimal(product["revenue_per_product"])
             financial_breakeven = round(Decimal(product["financial_breakeven"]), 2)
             financial_variance = revenue_per_product - financial_breakeven
+            formatted_fin_var = f"{'-$' if financial_variance < 0 else '$'}{abs(financial_variance):,.2f}"
             financial_status = "✅ Reached" if financial_variance >= 0 else "❌ Under Target"
 
             unit_be_data.append({"code":code,
@@ -393,7 +422,7 @@ def request_report():
                                  "unit_be_status":unit_be_status,
                                  "revenue_per_product":f"${revenue_per_product:.2f}",
                                  "financial_breakeven":f"${financial_breakeven}",
-                                 "financial_variance":f"${financial_variance}",
+                                 "financial_variance":formatted_fin_var,
                                  "financial_status":financial_status})
 
         columns = [["code", "name", "qty", "breakeven","unit_variance","unit_be_status", "revenue_per_product", "financial_breakeven", "financial_variance", "financial_status"],["Code", "Name", "QTY", "BE Units","Variance","Unit Status", "Revenue", "BE Revenue", "Revenue Variance", "Financial Status"]]
@@ -403,25 +432,34 @@ def request_report():
 
     # ------------------------End of report generators-----------------------------
 
+    global_data = master_financial_data("company_profile.csv")
+    unit_be_total = global_data["total_breakeven"]
+    financial_be_total = global_data["global_breakeven_revenue"]
+
+    total_qty, total_revenue = calculate_breakeven_status("financial_report.csv")
+
+
     report_window = tk.Toplevel(root)
     report_window.title("Request a Report")
-    center_window(report_window, 1005, 400) 
+    center_window(report_window, 1020, 450) 
 
     buttons_frm = Frame(report_window, width=1005, height=50) 
     buttons_frm.pack(anchor="center")
 
-    rev_qty_product_btn = tk.Button(buttons_frm, text="Global Unit Break-even\nProgress status", command=lambda:unit_be_status(financial_report, data_frm))
-    rev_qty_product_btn.grid(row=0, column=0)
+    rev_qty_product_btn = tk.Button(buttons_frm, text="Global Unit Break-even\nProgress status", command=lambda:unit_be_status(financial_report, data_frm, unit_be_total, total_qty))
+    rev_qty_product_btn.grid(row=0, column=0, padx=10, pady=10)
 
-    financial_be_btn = tk.Button(buttons_frm, text="Revenue Break-Even\nProgress status", command=lambda:financial_be_status(financial_report, data_frm))
-    financial_be_btn.grid(row=0, column=1)
+    financial_be_btn = tk.Button(buttons_frm, text="Revenue Break-Even\nProgress status", command=lambda:financial_be_status(financial_report, data_frm, financial_be_total, total_revenue))
+    financial_be_btn.grid(row=0, column=1, padx=10, pady=10)
 
     margins_rank_btn = tk.Button(buttons_frm, text="Break-Even Breakdown\nper Unit", command=lambda:be_status_per_product(financial_report, data_frm))
-    margins_rank_btn.grid(row=0, column=2)
+    margins_rank_btn.grid(row=0, column=2,padx=10, pady=10)
 
+    close_window_btn = tk.Button(buttons_frm, text="Return Main \nWindows", command=lambda:close_window(open_main_menu, report_window))
+    close_window_btn.grid(row=0, column=3, padx=50, pady=10)
 
     
-    data_frm = Frame(report_window, width=1005, height=350) 
+    data_frm = Frame(report_window, width=1005, height=400) 
     data_frm.pack(anchor="center")
 
 
@@ -574,7 +612,7 @@ def save_financial_data(save_filename, products):
             writer.writerow(product)
 
 def calculate_breakeven(fixed_cost, wacm, products_sale_mix, products_prices):
-    total_breakeven = Decimal(fixed_cost) / wacm
+    total_breakeven = int(round(Decimal(fixed_cost) / wacm, 0))
     products_unit_breakeven = []
     financial_unit_breakeven = []
     for sale_mix in products_sale_mix:

@@ -1,4 +1,4 @@
-from business_calculator import read_csv_file, update_products_file, calculate_breakeven
+from business_calculator import read_csv_file, update_products_file, calculate_breakeven, calculate_breakeven_revenue
 import pytest
 from pytest import approx
 import os
@@ -67,22 +67,33 @@ def test_update_products_file():
     assert result_2 == expected_2
 
 def test_calculate_breakeven():
-    sales_mix = [Decimal(0.50), Decimal(0.30), Decimal(0.20)]
-    prices = [50,100,250]
-    fixed_cost = 150000
-    wacm = 36
+    sales_mix = [Decimal(0.40), Decimal(0.30), Decimal(0.20), Decimal(0.10)]
+    prices = [Decimal(50.0), Decimal(120.0), Decimal(250.0), Decimal(20.0)]
+    fixed_cost = 300000
+    wacm = Decimal(45.50)
     total_breakeven, products_unit_breakeven, financial_unit_breakeven = calculate_breakeven(fixed_cost,wacm, sales_mix, prices)
 
-    assert total_breakeven == 4167
+    assert total_breakeven == 6593
     
-    assert products_unit_breakeven[0] == 2084
-    assert products_unit_breakeven[1] == 1250
-    assert products_unit_breakeven[2] == 834
+    assert products_unit_breakeven == [2638, 1979, 1319, 660]
 
-    assert financial_unit_breakeven[0] == approx(Decimal(104166.67), abs=0.01)
-    assert financial_unit_breakeven[1] ==  approx(Decimal(125000.00), abs=0.01)
-    assert financial_unit_breakeven[2] == approx(Decimal(20833.25), abs=0.01)
+    assert financial_unit_breakeven[0] == approx(Decimal(131868.13), abs=0.01)
+    assert financial_unit_breakeven[1] ==  approx(Decimal(237362.64), abs=0.01)
+    assert financial_unit_breakeven[2] == approx(Decimal(329670.33), abs=0.01)
+    assert financial_unit_breakeven[3] == approx(Decimal(13186.81), abs=0.01)
 
+def test_calculate_breakeven_revenue():
+    products_data = [{"wasp":Decimal("10.538"), "weighted_cm":Decimal("5.451")}, 
+                     {"wasp":Decimal("15.583"), "weighted_cm":Decimal("13.142")}]
+    fixed_cost = 15000
+
+    assert calculate_breakeven_revenue(products_data, fixed_cost) == approx(Decimal(21073.253), abs = 0.001)
+
+    products_data = [{"wasp":Decimal("2.525487"), "weighted_cm":Decimal("2.14865212")}, 
+                     {"wasp":Decimal("8.1516320"), "weighted_cm":Decimal("2.545465123")}]
+    fixed_cost = 85901.20
+
+    assert calculate_breakeven_revenue(products_data, fixed_cost) == approx(Decimal(195388.672), abs = 0.001)
 
 pytest.main(["-v", "--tb=line", "-rN", __file__])
 

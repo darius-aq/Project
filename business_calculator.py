@@ -93,6 +93,7 @@ def register_user():
 # ==================================================  MAIN MENU  ===============================================
 
 def open_main_menu():
+
     global_data = master_financial_data("company_profile.csv")
     if not global_data: return
     user_profile = read_csv_file("company_profile.csv")[0]
@@ -503,7 +504,7 @@ def read_csv_file(filename):
             data_list = csv.DictReader(file, delimiter=",")
             return list(data_list)
     except FileNotFoundError:
-        messagebox.showerror(title="FileNotFound", message="It was not possible to find the required file.\nBe sure the files has the correct names and run the program")
+        messagebox.showerror(title="FileNotFound", message=f"It was not possible to find {filename}.\nBe sure the files has the correct names and run the program")
         sys.exit(1)
     except PermissionError:
         messagebox.showerror(title="Permission Denied", message=f"Access denied to open {filename}.\nIf another program has the file open, please close it and run the program again")
@@ -657,13 +658,12 @@ def calculate_breakeven(fixed_cost, wacm, products_sale_mix, products_prices):
     financial_unit_breakeven = []
     for sale_mix in products_sale_mix:
         products_unit_breakeven.append(sale_mix * total_breakeven)
-    print(products_unit_breakeven)
     for break_even, price in zip(products_unit_breakeven, products_prices):
         financial_unit_breakeven.append(Decimal(break_even * price))
 
     return int(round(total_breakeven, 0)), [int(math.ceil(p_be)) for p_be in products_unit_breakeven], [round(f_be, 2) for f_be in financial_unit_breakeven]    
 
-def calculate_breakeven_revenue(products_data, fixed_cost):
+def calculate_breakeven_revenue(products_data:list, fixed_cost):
     total_wasp = sum(p["wasp"] for p in products_data)
     blended_cm = sum(p["weighted_cm"] for p in products_data)
     cm_ratio = blended_cm / total_wasp
@@ -698,8 +698,11 @@ def master_financial_data(profile):
 
 def main():
     try:
+        with open ("company_profile.csv", "r"):
+            pass
         open_main_menu()
     except FileNotFoundError:
+        messagebox.showwarning(title="Not registerd", message="File company_profile.csv not found. Redirecting to Registration")
         register_user()
 
 if __name__ == "__main__":

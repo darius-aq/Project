@@ -1,3 +1,7 @@
+"""
+
+"""
+
 import csv
 import tkinter as tk
 from tkinter import messagebox, ttk, Frame
@@ -594,7 +598,7 @@ def clean_products_data(filename):
     products_data = read_csv_file(filename)
     products_data_cleaned = []
     if len(products_data[0]) != 6:
-        messagebox.showwarning(title="Incorrect data fields", message="The number of fields in the file 'products.csv' is incorrect.\nCheck REAMDE.md for more information")
+        messagebox.showwarning(title="Incorrect data fields", message="The number of fields in the file 'products.csv' is incorrect.\nCheck README.md for more information")
         return []
 
     for row in products_data:
@@ -611,6 +615,11 @@ def clean_products_data(filename):
             target_qty = int(row["target_qty"])
             unit_cm = price - v_cost #Contribution Margin
             cm_ratio = Decimal(unit_cm/price) 
+
+            if v_cost <= 0 or price <= 0 or target_qty <= 0 or qty <= 0:
+                messagebox.showwarning(title="Invalid than data", message=f"No number data in {filename} can't be 0 or lower than 0.\nCheck README.md for more details")
+                return []
+
             products_data_cleaned.append({
                 "code": code,
                 "name": name,

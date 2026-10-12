@@ -652,16 +652,16 @@ def save_financial_data(save_filename, products):
         messagebox.showerror(title="Permission Denied", message=f"Access denied to open {save_filename} data not saved.\nIf another program has the file open, please CLOSE IT and try again")
 
 def calculate_breakeven(fixed_cost, wacm, products_sale_mix, products_prices):
-    total_breakeven = int(round(Decimal(fixed_cost) / wacm, 0))
+    total_breakeven = Decimal(fixed_cost) / wacm
     products_unit_breakeven = []
     financial_unit_breakeven = []
     for sale_mix in products_sale_mix:
-        products_unit_breakeven.append(math.ceil(sale_mix * total_breakeven))
-
+        products_unit_breakeven.append(sale_mix * total_breakeven)
+    print(products_unit_breakeven)
     for break_even, price in zip(products_unit_breakeven, products_prices):
         financial_unit_breakeven.append(Decimal(break_even * price))
 
-    return total_breakeven, products_unit_breakeven, financial_unit_breakeven    
+    return int(round(total_breakeven, 0)), [int(math.ceil(p_be)) for p_be in products_unit_breakeven], [round(f_be, 2) for f_be in financial_unit_breakeven]    
 
 def calculate_breakeven_revenue(products_data, fixed_cost):
     total_wasp = sum(p["wasp"] for p in products_data)

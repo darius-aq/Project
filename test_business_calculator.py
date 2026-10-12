@@ -1,8 +1,8 @@
-from business_calculator import read_csv_file, update_products_file, clean_products_data
+from business_calculator import read_csv_file, update_products_file, calculate_breakeven
 import pytest
 from pytest import approx
 import os
-
+from decimal import Decimal
 
 def test_read_csv_file():
     csv_data_1 = "product,code,price\nMonitor,T30,100.50"
@@ -66,8 +66,23 @@ def test_update_products_file():
     assert result_1 == expected_1
     assert result_2 == expected_2
 
-def test_clean_products_data():
-    ...
+def test_calculate_breakeven():
+    sales_mix = [Decimal(0.50), Decimal(0.30), Decimal(0.20)]
+    prices = [50,100,250]
+    fixed_cost = 150000
+    wacm = 36
+    total_breakeven, products_unit_breakeven, financial_unit_breakeven = calculate_breakeven(fixed_cost,wacm, sales_mix, prices)
+
+    assert total_breakeven == 4167
+    
+    assert products_unit_breakeven[0] == 2084
+    assert products_unit_breakeven[1] == 1250
+    assert products_unit_breakeven[2] == 834
+
+    assert financial_unit_breakeven[0] == approx(Decimal(104166.67), abs=0.01)
+    assert financial_unit_breakeven[1] ==  approx(Decimal(125000.00), abs=0.01)
+    assert financial_unit_breakeven[2] == approx(Decimal(20833.25), abs=0.01)
+
 
 pytest.main(["-v", "--tb=line", "-rN", __file__])
 
